@@ -3,6 +3,15 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.signal import butter, sosfiltfilt
+
+
+def filter_signal(signal, sample_rate, low=0.5, high=15, order=3):
+    """Band-pass filter. Keep speeds between low and high (Hz)."""
+    if high >= sample_rate / 2:
+        sys.exit("Error: high cutoff must be below half the sample rate.")
+    sos = butter(order, [low, high], btype="bandpass", fs=sample_rate, output="sos")
+    return sosfiltfilt(sos, signal)
 
 
 def save_signal(t, signal, path):
@@ -56,13 +65,15 @@ if __name__ == "__main__":
     np.random.seed(42)  # same "random" noise every run, so results repeat
     t, signal = generate_signal(bpm=72)
     save_signal(t, signal, "sample_data/fake_heartbeat.csv")
-
+    clean = filter_signal(signal, 250)
     t2, signal2 = load_signal("sample_data/fake_heartbeat.csv")
     print(np.allclose(t, t2), np.allclose(signal, signal2))
 
-    plt.plot(t, signal)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Signal")
-    plt.title("Fake heartbeat at 72 BPM")
-    plt.savefig("fake_heartbeat_out.png")
+    fig, (top, bottom) = plt.subplots(2, 1, sharex=True)
+    top.plot(t, signal)
+    top.set_title("Raw")
+    bottom.plot(t, clean)
+    bottom.set_title("Filtered (0.5 to 15 Hz)")
+    bottom.set_xlabel("Time (s)")
+    plt.savefig("filtered_out.png")
     plt.show()
