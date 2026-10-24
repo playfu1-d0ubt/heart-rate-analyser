@@ -75,5 +75,5 @@ if __name__ == "__main__":
     bottom.plot(t, clean)
     bottom.set_title("Filtered (0.5 to 15 Hz)")
     bottom.set_xlabel("Time (s)")
-    plt.savefig("filtered_out.png")
+    plt.savefig("export/filtered_out.png")
     plt.show()
