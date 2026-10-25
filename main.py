@@ -1,4 +1,6 @@
+import argparse
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -89,6 +91,7 @@ def plot_results(t, signal, clean, peaks, bpm, gaps, path):
     filt.plot(t, clean, color="tab:blue")
     filt.plot(t[peaks], clean[peaks], "ro", label="Detected beats")
     filt.set_title("Filtered (0.5 to 15 Hz) with detected beats")
+    filt.set_ylim(-0.6, 1.5)  # room above the peaks for the legend
     filt.set_ylabel("Signal")
     filt.legend(loc="upper right")
 
@@ -105,17 +108,54 @@ def plot_results(t, signal, clean, peaks, bpm, gaps, path):
     plt.show()
 
 
-if __name__ == "__main__":
-    np.random.seed(42)  # same "random" noise every run, so results repeat
-    t, signal = generate_signal(bpm=72)
-    save_signal(t, signal, "sample_data/fake_heartbeat.csv")
-    clean = filter_signal(signal, 250)
-    t2, signal2 = load_signal("sample_data/fake_heartbeat.csv")
-    print(np.allclose(t, t2), np.allclose(signal, signal2))
-    peaks = find_beats(clean, 250)
+def parse_args():
+    """Read the command-line options."""
+    parser = argparse.ArgumentParser(
+        description="Analyse a heart signal: filter, find beats, work out BPM."
+    )
+    parser.add_argument(
+        "--input",
+        default="sample_data/fake_heartbeat.csv",
+        help="CSV file with 'time' and 'signal' columns",
+    )
+    parser.add_argument(
+        "--rate", type=int, default=250, help="sample rate in Hz (default 250)"
+    )
+    parser.add_argument(
+        "--output",
+        default="export/heart_rate_analysis.png",
+        help="where to save the graph",
+    )
+    parser.add_argument(
+        "--generate",
+        type=float,
+        metavar="BPM",
+        help="make fake data at this BPM and save it to --input first",
+    )
+    return parser.parse_args()
+
+
+def main():
+    """Run the whole pipeline: load, filter, find beats, report, plot."""
+    args = parse_args()
+
+    if args.generate is not None:
+        np.random.seed(42)
+        t, signal = generate_signal(bpm=args.generate, sample_rate=args.rate)
+        save_signal(t, signal, args.input)
+
+    t, signal = load_signal(args.input)
+    clean = filter_signal(signal, args.rate)
+    peaks = find_beats(clean, args.rate)
+    bpm, gaps = calculate_bpm(peaks, args.rate)
+
     print(f"Found {len(peaks)} beats")
-    bpm, gaps = calculate_bpm(peaks, 250)
     print(f"Average heart rate: {bpm:.1f} BPM")
     print(f"Shortest gap: {gaps.min():.2f} s, longest: {gaps.max():.2f} s")
 
-    plot_results(t, signal, clean, peaks, bpm, gaps, "export/heart_rate_analysis.png")
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+    plot_results(t, signal, clean, peaks, bpm, gaps, args.output)
+
+
+if __name__ == "__main__":
+    main()
