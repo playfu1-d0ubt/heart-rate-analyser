@@ -3,7 +3,15 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, find_peaks, sosfiltfilt
+
+
+def find_beats(signal, sample_rate, min_gap=0.3):
+    """Return sample numbers where heartbeats happen."""
+    min_samples = int(min_gap * sample_rate)
+    min_height = 0.5 * np.max(signal)  # ignore bumps under half of tallest
+    peaks, _ = find_peaks(signal, distance=min_samples, prominence=min_height)
+    return peaks
 
 
 def filter_signal(signal, sample_rate, low=0.5, high=15, order=3):
@@ -68,12 +76,15 @@ if __name__ == "__main__":
     clean = filter_signal(signal, 250)
     t2, signal2 = load_signal("sample_data/fake_heartbeat.csv")
     print(np.allclose(t, t2), np.allclose(signal, signal2))
+    peaks = find_beats(clean, 250)
+    print(f"Found {len(peaks)} beats")
 
     fig, (top, bottom) = plt.subplots(2, 1, sharex=True)
     top.plot(t, signal)
     top.set_title("Raw")
     bottom.plot(t, clean)
-    bottom.set_title("Filtered (0.5 to 15 Hz)")
+    bottom.plot(t[peaks], clean[peaks], "ro")
+    bottom.set_title("Filtered with a detected beats")
     bottom.set_xlabel("Time (s)")
     plt.savefig("export/filtered_out.png")
     plt.show()
