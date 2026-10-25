@@ -78,9 +78,36 @@ def generate_signal(
     return t, signal
 
 
+def plot_results(t, signal, clean, peaks, bpm, gaps, path):
+    """Save and show a three-panel graph of the analysis."""
+    fig, (raw, filt, rate) = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+
+    raw.plot(t, signal, color="tab:gray")
+    raw.set_title("Raw signal")
+    raw.set_ylabel("Signal")
+
+    filt.plot(t, clean, color="tab:blue")
+    filt.plot(t[peaks], clean[peaks], "ro", label="Detected beats")
+    filt.set_title("Filtered (0.5 to 15 Hz) with detected beats")
+    filt.set_ylabel("Signal")
+    filt.legend(loc="upper right")
+
+    rate.plot(t[peaks[1:]], 60 / gaps, "o-", color="tab:green", label="BPM per beat")
+    rate.axhline(bpm, linestyle="--", color="black", label=f"Average {bpm:.1f} BPM")
+    rate.set_ylim(40, 120)
+    rate.set_title("Heart rate over time")
+    rate.set_xlabel("Time (s)")
+    rate.set_ylabel("BPM")
+    rate.legend(loc="upper right")
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=150, facecolor="white")
+    plt.show()
+
+
 if __name__ == "__main__":
     np.random.seed(42)  # same "random" noise every run, so results repeat
-    t, signal = generate_signal(bpm=120)
+    t, signal = generate_signal(bpm=72)
     save_signal(t, signal, "sample_data/fake_heartbeat.csv")
     clean = filter_signal(signal, 250)
     t2, signal2 = load_signal("sample_data/fake_heartbeat.csv")
@@ -91,12 +118,4 @@ if __name__ == "__main__":
     print(f"Average heart rate: {bpm:.1f} BPM")
     print(f"Shortest gap: {gaps.min():.2f} s, longest: {gaps.max():.2f} s")
 
-    fig, (top, bottom) = plt.subplots(2, 1, sharex=True)
-    top.plot(t, signal)
-    top.set_title("Raw")
-    bottom.plot(t, clean)
-    bottom.plot(t[peaks], clean[peaks], "ro")
-    bottom.set_title("Filtered with a detected beats")
-    bottom.set_xlabel("Time (s)")
-    plt.savefig("export/filtered_out.png")
-    plt.show()
+    plot_results(t, signal, clean, peaks, bpm, gaps, "export/heart_rate_analysis.png")
