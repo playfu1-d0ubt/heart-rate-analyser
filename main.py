@@ -45,6 +45,8 @@ def load_signal(path):
         df = pd.read_csv(path)
     except FileNotFoundError:
         sys.exit(f"Error: can't find '{path}'.")
+    except pd.errors.EmptyDataError:
+        sys.exit(f"Error: '{path}' is empty.")
 
     if "time" not in df.columns or "signal" not in df.columns:
         sys.exit("Error: CSV needs 'time' and 'signal' columns.")
@@ -97,7 +99,7 @@ def plot_results(t, signal, clean, peaks, bpm, gaps, path):
 
     rate.plot(t[peaks[1:]], 60 / gaps, "o-", color="tab:green", label="BPM per beat")
     rate.axhline(bpm, linestyle="--", color="black", label=f"Average {bpm:.1f} BPM")
-    rate.set_ylim(40, 120)
+    rate.set_ylim(bpm - 40, bpm + 40)
     rate.set_title("Heart rate over time")
     rate.set_xlabel("Time (s)")
     rate.set_ylabel("BPM")
@@ -135,9 +137,18 @@ def parse_args():
     return parser.parse_args()
 
 
+def check_args(args):
+    """Stop early if the options make no sense."""
+    if args.rate <= 0:
+        sys.exit("Error: --rate must be above 0.")
+    if args.generate is not None and args.generate <= 0:
+        sys.exit("Error: --generate BPM must be above 0.")
+
+
 def main():
     """Run the whole pipeline: load, filter, find beats, report, plot."""
     args = parse_args()
+    check_args(args)
 
     if args.generate is not None:
         np.random.seed(42)
@@ -145,9 +156,13 @@ def main():
         save_signal(t, signal, args.input)
 
     t, signal = load_signal(args.input)
+    if len(signal) < 2 * args.rate:
+        sys.exit("Error: need at least 2 seconds of data.")
     clean = filter_signal(signal, args.rate)
     peaks = find_beats(clean, args.rate)
     bpm, gaps = calculate_bpm(peaks, args.rate)
+    if not 30 <= bpm <= 200:
+        print(f"Warning: {bpm:.1f} BPM is unusual. Check --rate and the signal.")
 
     print(f"Found {len(peaks)} beats")
     print(f"Average heart rate: {bpm:.1f} BPM")
