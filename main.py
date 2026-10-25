@@ -153,6 +153,7 @@ def main():
     if args.generate is not None:
         np.random.seed(42)
         t, signal = generate_signal(bpm=args.generate, sample_rate=args.rate)
+        Path(args.input).parent.mkdir(parents=True, exist_ok=True)
         save_signal(t, signal, args.input)
 
     t, signal = load_signal(args.input)
