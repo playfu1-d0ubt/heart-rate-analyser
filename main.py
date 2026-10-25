@@ -14,6 +14,15 @@ def find_beats(signal, sample_rate, min_gap=0.3):
     return peaks
 
 
+def calculate_bpm(peaks, sample_rate):
+    """Return (average BPM, gaps between beats in seconds)."""
+    if len(peaks) < 2:
+        sys.exit("Error: need at least 2 beats to work out a heart rate.")
+    gaps = np.diff(peaks) / sample_rate
+    bpm = 60 / np.mean(gaps)
+    return bpm, gaps
+
+
 def filter_signal(signal, sample_rate, low=0.5, high=15, order=3):
     """Band-pass filter. Keep speeds between low and high (Hz)."""
     if high >= sample_rate / 2:
@@ -71,13 +80,16 @@ def generate_signal(
 
 if __name__ == "__main__":
     np.random.seed(42)  # same "random" noise every run, so results repeat
-    t, signal = generate_signal(bpm=72)
+    t, signal = generate_signal(bpm=120)
     save_signal(t, signal, "sample_data/fake_heartbeat.csv")
     clean = filter_signal(signal, 250)
     t2, signal2 = load_signal("sample_data/fake_heartbeat.csv")
     print(np.allclose(t, t2), np.allclose(signal, signal2))
     peaks = find_beats(clean, 250)
     print(f"Found {len(peaks)} beats")
+    bpm, gaps = calculate_bpm(peaks, 250)
+    print(f"Average heart rate: {bpm:.1f} BPM")
+    print(f"Shortest gap: {gaps.min():.2f} s, longest: {gaps.max():.2f} s")
 
     fig, (top, bottom) = plt.subplots(2, 1, sharex=True)
     top.plot(t, signal)
